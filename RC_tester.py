@@ -23,7 +23,6 @@ log = logging.getLogger("RC_tester")
 Log_OK_file = "RC_tester_installation_OK.log"
 Log_ERROR_file = "RC_tester_installation_ERROR.log"
 UMD = ''
-PRODUCT = ''
 PKGSTOINSTALL= ''
 Logs_dir = 'log'
 DEPENDENCIES = ['emi-wms', 'emi-voms-mysql', 'gfal2', 'emi-lfc_mysql', 'emi-lfc_oracle', 'emi-dpm_mysql', 'emi-dpm_oracle', 'emi-dpm_disk', 'gridsite', 'ige-meta-security-integration', 'ige-meta-globus-default-security', 'emi-cream-ce', 'emi-torque-server', 'emi-torque-client', 'emi-torque-utils', 'nordugrid-arc-client', 'nordugrid-arc-information-index', 'nordugrid-arc-compute-element', 'emi-mpi', 'ige-meta-gridway', 'ige-meta-globus-myproxy', 'ige-meta-globus-rls', 'emi.amga.amga-cli', 'emi.amga.amga-server', 'emi-emir', 'ige-meta-globus-gram5', 'ige-meta-saga', 'emi-lb', 'unicore-hila-unicore6', 'unicore-gateway6', 'unicore-registry6', 'unicore-tsi6', 'unicore-hila-gridftp', 'emi-wn', 'unicore-uvos-server', 'emi-px', 'emi-bdii-site', 'gfal', 'emi-trustmanager', 'emi-argus', 'apel-client', 'apel-parsers', 'emi-cluster', 'emi-voms-oracle', 'emi-ui', 'ige-meta-globus-gsissh', 'dcache-server', 'dcache-srmclient', 'glexec']
@@ -31,7 +30,6 @@ DEPENDENCIES = ['emi-wms', 'emi-voms-mysql', 'gfal2', 'emi-lfc_mysql', 'emi-lfc_
 
 def main(argv):
    global UMD
-   global PRODUCT
    if not argv or len(sys.argv) < 1:
       print 'ERROR: unhandled option'
       print 'USAGE: RC_tester.py -u <UMD version> -p <product name>'
@@ -53,7 +51,8 @@ def main(argv):
       elif opt in ("-u", "--umd"):
          UMD = arg
       elif opt in ("-p", "--product"):
-         PRODUCT = arg
+	 if arg != "all":
+		DEPENDENCIES = arg
 
 def install_cmd(cmd):
 	p = Popen(cmd, shell=True, stdout=PIPE)
@@ -94,6 +93,9 @@ def query_yes_no(question, default="yes"):
                              "(or 'y' or 'n').\n")
 
 def try_my_software(RELEASE,DEPENDENCIES):
+	global Logs_dir
+	global Log_OK_file
+	global Log_ERROR_file
 	# Generate a logs dir first
 	path = os.getcwd()
 	Logs_dir = os.path.join(path, Logs_dir)
@@ -150,11 +152,16 @@ def try_my_software(RELEASE,DEPENDENCIES):
 				
 				# Uninstall UMD software
 				uninstall_list = "uninstall.list"
-				with open(uninstall_list) as f:
-    					UNINSTALL = f.readlines()
-					f.close()
-				UNINSTALL_LIST = " "+ join(UNINSTALL)
-				print UNINSTALL_LIST
+				UNINSTALL = []
+
+				# Read uninstall pakages list from the file 
+				with open(uninstall_list) as my_file:
+					for line in my_file:
+						UNINSTALL.append(line.strip())
+
+					my_file.close()
+
+				UNINSTALL_LIST = ' '.join(UNINSTALL)
 
 				print ('UNINSTALL list: {0}'.format(UNINSTALL_LIST))
 				command = "yum remove -y "+ UNINSTALL_LIST +" > "+ Logs_dir +"/"+ package +"_yum_uninstall.log 2>&1"
@@ -183,7 +190,7 @@ RELEASE = platform.dist()[0]
 if RELEASE == 'redhat':
 	print 'Scientific linux detected....'
         print 'Moving /var/log/yum.log to /var/log/yum.log.preUMD.'
-	command = "/var/log/yum.log /var/log/yum.log.preUMD"
+	command = "mv /var/log/yum.log /var/log/yum.log.preUMD"
 	log.info("Running: "+command)
 	os.system(command)
         print 'Updating packages. Please wait...'
@@ -253,7 +260,7 @@ else:
 
 
 
-if query_yes_no("Do you want to coninue?: ") == True:
+if query_yes_no("Do you want to continue?: ") == True:
 	try_my_software(RELEASE,DEPENDENCIES)
 	print "DONE. Please read installator_OK.log and intallator_ERROR.log files for a complete report."
 	print "Have a nice day!!!"
