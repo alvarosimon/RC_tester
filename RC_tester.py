@@ -16,14 +16,16 @@ import datetime
 import time
 import commands
 import platform
-
+from subprocess import Popen, PIPE
 
 time_format_definition = "%Y-%m-%dT%H:%M:%SZ"
 log = logging.getLogger("RC_tester")
+Log_OK_file = "RC_tester_installation_OK.log"
+Log_ERROR_file = "RC_tester_installation_ERROR.log"
 UMD = ''
 PRODUCT = ''
 PKGSTOINSTALL= ''
-LOGS_DIR = 'log'
+Logs_dir = 'log'
 DEPENDENCIES = ['emi-wms', 'emi-voms-mysql', 'gfal2', 'emi-lfc_mysql', 'emi-lfc_oracle', 'emi-dpm_mysql', 'emi-dpm_oracle', 'emi-dpm_disk', 'gridsite', 'ige-meta-security-integration', 'ige-meta-globus-default-security', 'emi-cream-ce', 'emi-torque-server', 'emi-torque-client', 'emi-torque-utils', 'nordugrid-arc-client', 'nordugrid-arc-information-index', 'nordugrid-arc-compute-element', 'emi-mpi', 'ige-meta-gridway', 'ige-meta-globus-myproxy', 'ige-meta-globus-rls', 'emi.amga.amga-cli', 'emi.amga.amga-server', 'emi-emir', 'ige-meta-globus-gram5', 'ige-meta-saga', 'emi-lb', 'unicore-hila-unicore6', 'unicore-gateway6', 'unicore-registry6', 'unicore-tsi6', 'unicore-hila-gridftp', 'emi-wn', 'unicore-uvos-server', 'emi-px', 'emi-bdii-site', 'gfal', 'emi-trustmanager', 'emi-argus', 'apel-client', 'apel-parsers', 'emi-cluster', 'emi-voms-oracle', 'emi-ui', 'ige-meta-globus-gsissh', 'dcache-server', 'dcache-srmclient', 'glexec']
 
 
@@ -53,10 +55,10 @@ def main(argv):
       elif opt in ("-p", "--product"):
          PRODUCT = arg
 
-def run_cmd(cmd):
-        p = Popen(cmd, shell=True, stdout=PIPE)
+def install_cmd(cmd):
+	p = Popen(cmd, shell=True, stdout=PIPE)
         output = p.communicate()[0]
-        return output
+        return p.returncode
 
 
 def query_yes_no(question, default="yes"):
@@ -91,9 +93,86 @@ def query_yes_no(question, default="yes"):
             sys.stdout.write("Please respond with 'yes' or 'no' "\
                              "(or 'y' or 'n').\n")
 
+def try_my_software(RELEASE,DEPENDENCIES):
+	# Generate a logs dir first
+	path = os.getcwd()
+	Logs_dir = os.path.join(path, Logs_dir)
+	if not os.path.isdir(Logs_dir):
+		try:
+    			os.makedirs(Logs_dir)
+		except:
+			print 'Error creating Logs dir... Exiting.'
+			sys.exit(2)
+
+	Log_OK_file = os.path.join(Logs_dir, Log_OK_file) 
+	Log_ERROR_file = os.path.join(Logs_dir, Log_ERROR_file)
+		
+	if RELEASE == 'debian':
+		print "OK, we will contine... Testing debian release."
+		for package in DEPENDENCIES:
+			print ('Installing {0} meta-package...'.format(package))
+			command = "apt-get install -y "+ package +" > "+ Logs_dir +"/"+ package +"_apt_OUTPUT.log 2>&1"
+			exit_code = install_cmd(command)
+			# If installation was successful
+			if exit_code == 0:
+				with open(Log_OK_file, "a") as myfile:
+                			myfile.write(package +": [OK] All dependencies are satisfied.\n")
+                			myfile.close()
+				command = "apt-get update;apt-get dist-upgrade -y -qq > "+ Logs_dir +"/"+ package +"_apt_postupdate.log 2>&1"
+				os.system(command)
+                	# If not something is wrong, write a log
+                	else:
+				print ('ERROR found installing {0} meta-package! Please check RC_tester logs.'.format(package))
+	                        with open(Log_ERROR_file, "a") as myfile:
+                                	myfile.write(package +": [ERROR] impossible to install some missing dependencies. Please, install it manually and read "+ package +"_apt_OUTPUT.log\n")
+                                        myfile.close()
+
+	if RELEASE == 'redhat':
+		print "OK, we will contine... Testing redhat release."
+		# remove VM yum log history 
+		os.remove("/var/log/yum.log")
+		for package in DEPENDENCIES:
+			print ('Installing {0} meta-package...'.format(package))
+			command = "yum install -y "+ package +" > "+ Logs_dir +"/"+ package +"_yum_OUTPUT.log 2>&1"
+			exit_code = install_cmd(command)
+                        # If installation was successful
+                        if exit_code == 0:
+                                with open(Log_OK_file, "a") as myfile:
+                                        myfile.write(package +": [OK] All dependencies are satisfied.\n")
+                                        myfile.close()
+
+
+				# Create Uninstallation list
+				command = "awk '{print $5}' /var/log/yum.log > uninstall.list"
+				os.system(command)
+				command = "yum update -y > "+  Logs_dir +"/"+ package +"_yum_postupdate.log 2>&1"
+				os.system(command)
+				
+				# Uninstall UMD software
+				uninstall_list = "uninstall.list"
+				with open(uninstall_list) as f:
+    					UNINSTALL = f.readlines()
+					f.close()
+				UNINSTALL_LIST = " "+ join(UNINSTALL)
+				print UNINSTALL_LIST
+
+				print ('UNINSTALL list: {0}'.format(UNINSTALL_LIST))
+				command = "yum remove -y "+ UNINSTALL_LIST +" > "+ Logs_dir +"/"+ package +"_yum_uninstall.log 2>&1"
+				os.system(command)
+				os.remove("/var/log/yum.log")
+			else:
+				print ('ERROR found installing {0} meta-package! Please check RC_tester logs.'.format(package))
+                                with open(Log_ERROR_file, "a") as myfile:
+                                	myfile.write(package +": [ERROR] impossible to install some missing dependencies. Please, install it manually and read "+ package +"_yum_OUTPUT.log\n")
+                                        myfile.close()
+
+
 if __name__ == "__main__":
 	main(sys.argv[1:])
-
+	euid = os.geteuid()
+	if euid != 0:
+    		print "Script not started as root. Exiting.."
+		sys.exit(2)
 
 #for product in DEPENDENCIES:
 #    print product
@@ -174,8 +253,11 @@ else:
 
 
 
-if query_yes_no("Do you want to coninue? ") == True:
-	print "Ok, we will continue..."
+if query_yes_no("Do you want to coninue?: ") == True:
+	try_my_software(RELEASE,DEPENDENCIES)
+	print "DONE. Please read installator_OK.log and intallator_ERROR.log files for a complete report."
+	print "Have a nice day!!!"
 	
 else:
-	print 'Exiting... Have a nice day.'
+	print 'Exiting... Have a nice day!!!.'
+	sys.exit(0)
