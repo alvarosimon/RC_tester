@@ -11,7 +11,7 @@ Requirements
 ------------
 
 * UMD repository configuration
-* Python 2.4
+* Python 2.5
 
 ### Examples
 To test UMD 3 meta-packages:
