@@ -25,7 +25,7 @@ Log_ERROR_file = "RC_tester_installation_ERROR.log"
 UMD = ''
 PKGSTOINSTALL= ''
 Logs_dir = 'log'
-DEPENDENCIES = ['emi-wms', 'emi-voms-mysql', 'gfal2', 'emi-lfc_mysql', 'emi-lfc_oracle', 'emi-dpm_mysql', 'emi-dpm_oracle', 'emi-dpm_disk', 'gridsite', 'ige-meta-security-integration', 'ige-meta-globus-default-security', 'emi-cream-ce', 'emi-torque-server', 'emi-torque-client', 'emi-torque-utils', 'nordugrid-arc-client', 'nordugrid-arc-information-index', 'nordugrid-arc-compute-element', 'emi-mpi', 'ige-meta-gridway', 'ige-meta-globus-myproxy', 'ige-meta-globus-rls', 'emi.amga.amga-cli', 'emi.amga.amga-server', 'emi-emir', 'ige-meta-globus-gram5', 'ige-meta-saga', 'emi-lb', 'unicore-hila-unicore6', 'unicore-gateway6', 'unicore-registry6', 'unicore-tsi6', 'unicore-hila-gridftp', 'emi-wn', 'unicore-uvos-server', 'emi-px', 'emi-bdii-site', 'gfal', 'emi-trustmanager', 'emi-argus', 'apel-client', 'apel-parsers', 'emi-cluster', 'emi-voms-oracle', 'emi-ui', 'ige-meta-globus-gsissh', 'dcache-server', 'dcache-srmclient', 'glexec']
+DEPENDENCIES = ['emi-wms', 'emi-voms-mysql', 'gfal2', 'emi-lfc_mysql', 'emi-lfc_oracle', 'emi-dpm_mysql', 'emi-dpm_oracle', 'emi-dpm_disk', 'gridsite', 'ige-meta-security-integration', 'ige-meta-globus-default-security', 'emi-cream-ce', 'emi-torque-server', 'emi-torque-client', 'emi-torque-utils', 'nordugrid-arc-client', 'nordugrid-arc-information-index', 'nordugrid-arc-compute-element', 'emi-mpi', 'ige-meta-gridway', 'ige-meta-globus-myproxy', 'ige-meta-globus-rls', 'emi.amga.amga-cli', 'emi.amga.amga-server', 'emi-emir', 'ige-meta-globus-gram5', 'ige-meta-saga', 'emi-lb', 'unicore-hila-unicore6', 'unicore-gateway6', 'unicore-registry6', 'unicore-tsi6', 'unicore-hila-gridftp', 'emi-wn', 'unicore-uvos-server', 'emi-px', 'emi-bdii-site', 'gfal', 'emi-trustmanager', 'emi-argus', 'apel-client', 'apel-parsers', 'emi-cluster', 'emi-voms-oracle', 'emi-ui', 'storm-backend-server', 'ige-meta-globus-gsissh', 'dcache-server', 'dcache-srmclient', 'glexec','unicore-unicorex6', 'ige-meta-globus-gridftp', 'emi-ge-utils','qcg-accounting', 'qcg-broker', 'qcg-comp', 'qcg-core', 'qcg-ntf']
 
 
 def main(argv):
@@ -214,6 +214,21 @@ if RELEASE == 'redhat':
         log.info("Running: "+command)
         os.system(command)
         print 'Added IGE repo key.'
+
+        command = "rpm --import http://www.qoscosgrid.org/qcg-packages/sl5/RPM-GPG-KEY-QCG"
+        log.info("Running: "+command)
+        os.system(command)
+        print 'Added QCG repo key.'
+
+	command = "rpm --import http://download.nordugrid.org/RPM-GPG-KEY-nordugrid"
+        log.info("Running: "+command)
+        os.system(command)
+        print 'Added NORDUGRID repo key.'
+
+        command = "rpm --import http://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-6"
+        log.info("Running: "+command)
+        os.system(command)
+        print 'Added EPEL 6 repo key.'
 	
         print 'Configuring /etc/yum/pluginconf.d/priorities.conf file...'
 	prio_file = "/etc/yum/pluginconf.d/priorities.conf"
@@ -246,6 +261,20 @@ elif RELEASE == 'debian':
         os.system(command)
 
         print 'Added IGE repo key.'
+
+	command = "wget -O qcg.key http://www.qoscosgrid.org/qcg-packages/sl5/RPM-GPG-KEY-QCG ; apt-key add qcg.key"
+        log.info("Running: "+command)
+        os.system(command)
+
+        print 'Added IGE repo key.'
+
+        command = "wget -O arc.key http://download.nordugrid.org/RPM-GPG-KEY-nordugrid ; apt-key add arc.key"
+        log.info("Running: "+command)
+        os.system(command)
+
+        print 'Added IGE repo key.'
+
+	
         print 'Updating packages. Please wait...'
 	command = "apt-get update;apt-get dist-upgrade -y"
 	log.info("Running: "+command)
